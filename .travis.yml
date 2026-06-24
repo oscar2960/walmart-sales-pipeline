@@ -1,0 +1,52 @@
+# Configuración de Travis CI para el pipeline de Integración Continua.
+# Ejecuta: lint -> pruebas unitarias -> pruebas de integración con
+# PostgreSQL real -> build de la imagen Docker.
+
+language: python
+python:
+  - "3.11"
+
+services:
+  - docker
+  - postgresql
+
+addons:
+  postgresql: "14"
+
+env:
+  global:
+    - DB_HOST=localhost
+    - DB_PORT=5432
+    - DB_USER=walmart_user
+    - DB_PASSWORD=walmart_pass
+    - DB_NAME=walmart_sales
+    - CSV_PATH=data/Walmart_Sales.csv
+
+cache:
+  directories:
+    - "$HOME/.cache/pip"
+
+install:
+  - pip install --upgrade pip
+  - pip install -r requirements.txt -r requirements-dev.txt
+
+before_script:
+  - psql -c "CREATE USER walmart_user WITH PASSWORD 'walmart_pass' SUPERUSER;" -U postgres
+  - psql -c "CREATE DATABASE walmart_sales OWNER walmart_user;" -U postgres
+
+script:
+  # 1. Análisis estático de código
+  - flake8 app tests --max-line-length=120
+  # 2. Pruebas unitarias + integración (PostgreSQL ya disponible vía addon)
+  - pytest tests/ -v --cov=app --cov-report=term-missing
+  # 3. Build de la imagen Docker (valida que el Dockerfile sea correcto)
+  - docker build -t walmart-sales-app:${TRAVIS_COMMIT:0:7} .
+
+after_success:
+  - echo "✅ Build exitoso - commit ${TRAVIS_COMMIT}"
+
+after_failure:
+  - echo "❌ Build falló - revisar logs anteriores"
+
+notifications:
+  email: false

@@ -1,0 +1,44 @@
+# Definición de servicios para Codeship Basic.
+# 'postgres' simula el entorno de producción y 'test' es el contenedor
+# donde se ejecutan lint y pruebas contra esa base de datos.
+
+postgres:
+  image: postgres:15-alpine
+  environment:
+    POSTGRES_USER: walmart_user
+    POSTGRES_PASSWORD: walmart_pass
+    POSTGRES_DB: walmart_sales
+  volumes:
+    - ./sql:/docker-entrypoint-initdb.d
+
+test:
+  build:
+    image: walmart-sales-app-test
+    dockerfile: Dockerfile
+    context: .
+  links:
+    - postgres
+  environment:
+    DB_HOST: postgres
+    DB_PORT: 5432
+    DB_USER: walmart_user
+    DB_PASSWORD: walmart_pass
+    DB_NAME: walmart_sales
+    CSV_PATH: /app/data/Walmart_Sales.csv
+  volumes:
+    - ./:/app
+
+app:
+  build:
+    image: walmart-sales-app
+    dockerfile: Dockerfile
+    context: .
+  links:
+    - postgres
+  environment:
+    DB_HOST: postgres
+    DB_PORT: 5432
+    DB_USER: walmart_user
+    DB_PASSWORD: walmart_pass
+    DB_NAME: walmart_sales
+    CSV_PATH: /app/data/Walmart_Sales.csv

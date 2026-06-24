@@ -1,0 +1,15 @@
+# Pasos del pipeline de Codeship.
+# Se ejecutan en orden: análisis estático -> pruebas unitarias/integración
+# -> ejecución funcional de la app (smoke test del flujo completo).
+
+- name: lint
+  service: test
+  command: sh -c "pip install -r requirements-dev.txt && flake8 app tests --max-line-length=120"
+
+- name: unit_and_integration_tests
+  service: test
+  command: sh -c "pip install -r requirements-dev.txt && pytest tests/ -v --cov=app"
+
+- name: smoke_test_app
+  service: app
+  command: python -m app.main
